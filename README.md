@@ -1,18 +1,20 @@
-# Gradio-DeepSeek-Chat
+# DeepSeekAPI-Chat —— 支持图片理解
 
 **释放AI的无限潜能！**
 
-Gradio-DeepSeek-Chat 是一款功能强大、交互流畅的智能对话助手，专为探索未来人工智能技术而设计。无论是实时展示AI的思考过程，还是灵活切换多种大模型，亦或是处理复杂图片任务，它都能轻松应对。无论你是开发者、研究人员还是AI爱好者，这款工具都将为你带来前所未有的体验！
+你是否对强大的 DeepSeek R1 模型爱不释手，却常常因为官网服务器繁忙而感到沮丧？别担心！现在，你可以通过调用 DeepSeek R1 的 API，在无需排队的情况下畅快体验这一强大模型的魅力。
 
-### FEATURES AT A GLANCE:
+本项目基于 Gradio 框架搭建了一个简洁易用的聊天界面，不仅支持高效的文本对话，还具备图片理解功能，让你的创意得以尽情释放。此外，阿里云还提供了一定数量的免费 Token，帮助你轻松上手，无需为高昂的成本担忧。
+
+记住：摆脱拥挤服务器的束缚，让灵感与创造力永远在线！
+
+### 功能概览：
 - **实时流式交互**：见证AI生成内容的每一步，感受科技的魅力。
 - **多模型自由切换**：支持 DeepSeek、Llama 等主流大模型，满足不同场景需求。
 - **图片处理能力**：从内容识别到场景解析，让AI“看懂”你的世界。
 - **可配置记忆长度**：精准控制对话历史，打造个性化的对话体验。
 - **简洁直观界面**：无需复杂操作，上手即用。
 
-### WHY CHOOSE GRADIO-DEEPSEEK-CHAT?
-Imagine having a tool that not only understands your words but also “sees” your images, all while adapting to your preferences. With Gradio-DeepSeek-Chat, you get more than just a chatbot—you get an intelligent assistant that evolves with you.
 
 ## ✨ 核心特性
 
@@ -41,6 +43,7 @@ Imagine having a tool that not only understands your words but also “sees” y
 - PIP 包管理工具
 
 ### 安装步骤
+首先前往 [阿里云](https://account.aliyun.com/) 平台上申请自己的 API-KEY，并将其写入代码中对应的位置。
 
 ```bash
 # 克隆仓库
@@ -53,12 +56,15 @@ cd deepseekapi
 pip install -r requirements.txt
 
 ## 🛠 使用指南
+```
 
 ### 1. 启动服务
 运行以下命令启动应用程序：
 
 ```bash
-python app.py
+cd deepseekapi
+python deepseek_api.py
+```
 
 默认访问地址为 http://127.0.0.1:7860。
 
@@ -69,4 +75,4 @@ Llama
 其他支持的模型
 
 ### 3. 图片处理
-点击“上传图片”按钮，选择本地图片文件，系统将自动解析并返回结果。
+点击“上传图片”按钮，选择本地图片文件，即可实现针对图片的提问的回答。
