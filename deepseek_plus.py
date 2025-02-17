@@ -1,3 +1,4 @@
+# 支持图片理解
 # -*- coding: utf-8 -*-
 # 导入所需库
 import gradio as gr
