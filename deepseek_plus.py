@@ -32,6 +32,7 @@ class ChatSystem:
         self.chat_records = []
         self.stop_flag = False  # 新增停止标志
 
+# 用于处理图片，调用qwen-vl-plus模型
     def _process_image(self, image_path):
         try:
             with open(image_path, "rb") as f:
@@ -53,7 +54,7 @@ class ChatSystem:
         except Exception as e:
             return f"⚠️ 图片解析失败：{str(e)}"
 
-    def stop_generation(self):  # 新增停止方法
+    def stop_generation(self):  # 停止方法
         self.stop_flag = True
 
     def generate_response(self, user_input, selected_model, image_path=None):
