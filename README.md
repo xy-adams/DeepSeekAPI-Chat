@@ -50,7 +50,7 @@
 git clone https://github.com/xy-adams/deepseekapi.git
 
 # 进入项目目录
-cd deepseekapi
+cd DeepSeekAPI-Chat
 
 # 安装依赖
 pip install -r requirements.txt
@@ -62,7 +62,7 @@ pip install -r requirements.txt
 运行以下命令启动应用程序：
 
 ```bash
-cd deepseekapi
+cd DeepSeekAPI-Chat
 python deepseek_api.py
 ```
 
