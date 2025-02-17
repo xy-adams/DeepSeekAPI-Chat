@@ -2,10 +2,9 @@
 # 导入所需库
 import gradio as gr
 from openai import OpenAI
-import base64
-import webbrowser
+import webbrowser  # 导入webbrowser模块用于自动打开链接
 
-# -------------------- 客户端初始化 -------------------- 
+# -------------------- 客户端初始化 --------------------
 # 初始化OpenAI客户端（适配阿里云平台）
 client = OpenAI(
     api_key="sk-145d98eda0454bc2b0fccd036efada63",  # 从环境变量获取API密钥
@@ -13,254 +12,140 @@ client = OpenAI(
 )
 
 
-# -------------------- 全局配置 --------------------
-MODEL_CONFIG = {
-    "available_models": [
-        "deepseek-r1",
-        "deepseek-v3",
-        "qwen-omni-turbo-latest",
-        "llama3.3-70b-instruct"
-    ],
-    "default_model": "deepseek-r1",
-    "max_history": 8
-}
+# -------------------- # 模型配置 --------------------
+AVAILABLE_MODELS = [
+    "deepseek-r1",
+    "deepseek-v3",
+    "qwen-omni-turbo-latest",
+    "llama3.3-70b-instruct"
+]
+HISTORY_ROUNDS = 10  # 默认保留10轮
 
-# -------------------- 系统核心功能 --------------------
-class ChatSystem:
-    def __init__(self):
-        self.history = []
-        self.chat_records = []
-        self.stop_flag = False  # 新增停止标志
+# 初始化消息历史记录
+messages_history = []
 
-    def _process_image(self, image_path):
-        try:
-            with open(image_path, "rb") as f:
-                base64_data = base64.b64encode(f.read()).decode("utf-8")
-            
-            response = client.chat.completions.create(
-                model="qwen-vl-plus",
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "详细描述图片内容，包括主要物体、场景特征、文字信息等"},
-                        {"type": "image_url", "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_data}"
-                        }}
-                    ]
-                }]
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"⚠️ 图片解析失败：{str(e)}"
 
-    def stop_generation(self):  # 新增停止方法
-        self.stop_flag = True
+# -------------------- 核心聊天函数 --------------------
+def chat_with_model(user_input, chat_output, selected_model):
+    """
+    与DeepSeek模型进行交互的核心函数
 
-    def generate_response(self, user_input, selected_model, image_path=None):
-        self.stop_flag = False  # 每次生成前重置标志
-        
-        # 处理图片并合并到用户输入
-        combined_input = user_input
-        if image_path:
-            analysis_result = self._process_image(image_path)
-            combined_input = f"{user_input}\n[图片分析]: {analysis_result}"
-        
-        # 记录用户输入（仅显示原始内容）
-        user_entry = f'<div class="user-message">{user_input}</div>'
-        self.chat_records.append(user_entry)
-        
-        # 实际发送合并后的内容
-        self.history.append({"role": "user", "content": combined_input})
-        context = self.history[-MODEL_CONFIG["max_history"]*2:]
-        
-        full_response = ""
-        reasoning_content = ""
-        try:
-            stream = client.chat.completions.create(
-                model=selected_model,
-                messages=context,
-                stream=True,
-                temperature=0.7
-            )
-            
-            for chunk in stream:
-                if self.stop_flag:  # 检查停止标志
-                    full_response += "<br>（回答已中断）"
-                    break
-                
-                delta = chunk.choices[0].delta
-                
-                if hasattr(delta, "reasoning_content") and delta.reasoning_content:
-                    reasoning_content += delta.reasoning_content
-                
-                if hasattr(delta, "content") and delta.content:
-                    full_response += delta.content
-                
-                current_display = "<div class='chat-container'>" + "\n".join(self.chat_records) + \
-                    f'<div class="assistant-message"><div class="response">{full_response}</div>' + \
-                    (f'<div class="reasoning">{reasoning_content}</div>' if reasoning_content else "") + "</div></div>"
-                yield current_display
-            
-            self.history.append({"role": "assistant", "content": full_response})
-            self.chat_records.append(
-                f'<div class="assistant-message"><div class="response">{full_response}</div>' + \
-                (f'<div class="reasoning">{reasoning_content}</div>' if reasoning_content else "") + "</div>"
-            )
-        except Exception as e:
-            error_msg = f'<div class="error-message">🔴 系统错误：{str(e)}</div>'
-            self.chat_records.append(error_msg)
-            yield "<div class='chat-container'>" + "\n".join(self.chat_records) + "</div>"
+    参数：
+    user_input (str): 用户输入的文本
+    chat_output (str): 当前聊天输出内容
+    selected_model (str): 选择的模型名称
 
-    def clear_history(self):
-        self.history = []
-        self.chat_records = []
-        return "<div style='color:#7f8c8d; text-align: center;'>✅ 对话历史已重置</div>"
+    返回：
+    generator: 通过yield逐步返回生成的聊天内容
+    """
+    # 将用户输入添加到消息历史记录
+    messages_history.append({'role': 'user', 'content': user_input})
 
-# -------------------- 界面实现 --------------------
-class ChatInterface:
-    def __init__(self, system):
-        self.system = system
-        self.demo = self._create_interface()
-    
-    def _create_interface(self):
-        custom_css = """
-        #chat-box { 
-            height: 55vh !important;
-            overflow-y: auto !important;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            border-radius: 10px;
-            background: #f9f9f9;
-        }
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .user-message {
-            align-self: flex-end;
-            background: #e3f2fd;
-            padding: 10px 15px;
-            border-radius: 15px;
-            max-width: 70%;
-            word-break: break-word;
-            margin-left: 30%;
-        }
-        .assistant-message {
-            align-self: flex-start;
-            background: #f5f5f5;
-            padding: 10px 15px;
-            border-radius: 15px;
-            max-width: 70%;
-            word-break: break-word;
-            margin-right: 30%;
-        }
-        .reasoning {
-            color: #7f8c8d;
-            font-size: 0.9em;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #ddd;
-        }
-        .error-message {
-            color: #e74c3c;
-            padding: 10px;
-            text-align: center;
-        }
-        .input-section {
-            padding: 12px;
-            background: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+    recent_messages = messages_history[-HISTORY_ROUNDS*2:]  # 每轮包含user和assistant两条
 
-        /* 新增按钮高度样式 */
-        #submit-btn {
-            height: 70px !important;  /* 设置按钮高度为60px */
-        }
-        """
+    # 初始化思考过程和回答内容
+    reasoning_content = ""  # 存储模型的推理过程
+    answer_content = ""  # 存储最终回答
 
-        with gr.Blocks(theme=gr.themes.Soft(), css=custom_css, title="多模态AI助手") as interface:
-            gr.Markdown("""<h1 style="text-align: center; color: #2c3e50;">🌈 多模态AI助手</h1>
-            <p style="text-align: center; color: #7f8c8d;">支持图片理解 | 多模型切换 | 上下文记忆</p>
-            <hr style="margin-bottom: 20px;">""")
-            
-            with gr.Row():
-                with gr.Column(scale=3):
-                    chat_display = gr.HTML(
-                        elem_id="chat-box",
-                        value="<div style='color:#7f8c8d; text-align: center;'>欢迎使用智能助手！</div>"
-                    )
-                
-                with gr.Column(scale=1):
-                    with gr.Accordion("📷 图像处理区", open=True):
-                        image_upload = gr.Image(
-                            label="上传图片",
-                            type="filepath",
-                            height=140,
-                            interactive=True
-                        )
-                    
-                    with gr.Accordion("⚙️ 模型控制", open=True):
-                        model_selector = gr.Dropdown(
-                            label="选择AI模型",
-                            choices=MODEL_CONFIG["available_models"],
-                            value=MODEL_CONFIG["default_model"],
-                            interactive=True
-                        )
-                        with gr.Row():
-                            clear_btn = gr.Button("🔄 新对话", variant="secondary")
-                            stop_btn = gr.Button("⏹️ 停止生成", variant="stop")
-            
-            with gr.Row(variant="panel"):
-                with gr.Column(scale=3):
-                    user_input = gr.Textbox(
-                        placeholder="请输入您的问题...",
-                        lines=2,
-                        max_lines=4,
-                        show_label=False
-                    )
-                with gr.Column(scale=1):
-                    submit_btn = gr.Button("🚀 发送", variant="primary", elem_id="submit-btn")
-            
-            submit_event = submit_btn.click(
-                self.system.generate_response,
-                [user_input, model_selector, image_upload],
-                chat_display
-            ).then(
-                lambda: [None, ""],
-                outputs=[image_upload, user_input]
-            )
-            
-            user_input.submit(
-                self.system.generate_response,
-                [user_input, model_selector, image_upload],
-                chat_display
-            ).then(
-                lambda: [None, ""],
-                outputs=[image_upload, user_input]
-            )
-            
-            clear_btn.click(
-                self.system.clear_history,
-                outputs=chat_display
-            )
-            
-            stop_btn.click(
-                lambda: self.system.stop_generation(),
-                inputs=None,
-                outputs=None,
-            )
-        
-        return interface
+    # 格式化输出内容
+    chat_output += f"\n\n"
+    chat_output += f"  \n**输入:** {user_input}\n"  # 显示用户输入
+    chat_output += f"  \n<span style='color: gray;'>**思考过程:** </span> \n"  # 灰色思考过程标题
 
-# -------------------- 启动系统 --------------------
-if __name__ == "__main__":
-    chat_system = ChatSystem()
-    interface = ChatInterface(chat_system)
-    webbrowser.open("http://127.0.0.1:7860")
-    interface.demo.launch(
-        server_name="127.0.0.1",
-        server_port=7860,
-        show_error=True
+    # 调用阿里云API进行流式响应
+    completion = client.chat.completions.create(
+        model=selected_model,  # 使用选择的模型
+        messages=recent_messages,  # 传入最近对话上下文
+        stream=True  # 启用流式传输
     )
+
+    begin_answer = 0  # 回答部分开始标记
+    for chunk in completion:
+        delta = chunk.choices[0].delta
+
+        # 获取模型的推理过程内容（如果存在）
+        if hasattr(delta, "reasoning_content") and delta.reasoning_content:
+            reasoning_chunk = delta.reasoning_content
+            reasoning_content += reasoning_chunk
+            # 用灰色显示思考过程
+            chat_output += f"<span style='color: gray;'>{reasoning_chunk}</span>"
+
+        # 获取模型的回答内容
+        if hasattr(delta, "content") and delta.content:
+            if begin_answer == 0:  # 首次出现回答时添加标题
+                chat_output += f"  \n**回答:** \n"
+                begin_answer = 1
+            answer_chunk = delta.content
+            answer_content += answer_chunk
+            chat_output += answer_chunk  # 直接显示回答内容
+
+        yield chat_output  # 逐步返回生成内容
+
+    # 将助手的最终回答添加到消息历史记录
+    messages_history.append({'role': 'assistant', 'content': answer_content})
+
+
+# -------------------- 清空对话函数 --------------------
+def clear_conversation(chat_output):
+    """
+    清空对话历史和聊天界面
+
+    参数：
+    chat_output (str): 当前聊天输出内容
+
+    返回：
+    str: 清空后的空字符串
+    """
+    global messages_history
+    messages_history = []  # 重置消息历史
+    chat_output = ""  # 清空聊天显示
+    return chat_output
+
+
+# -------------------- Gradio界面构建 --------------------
+with gr.Blocks() as demo:  # 创建块状布局界面
+    gr.Markdown("""<h1 style="text-align: center; color: #2c3e50;">🌈 deepseek——AI助手</h1>""")  # 更新标题
+
+    # 模型选择区域
+    with gr.Row():
+        model_selector = gr.Dropdown(
+            label="选择模型",
+            choices=AVAILABLE_MODELS,
+            value=AVAILABLE_MODELS[0],
+            interactive=True
+        )
+
+    # 聊天显示区域
+    with gr.Row():
+        with gr.Column():
+            chat_output = gr.Markdown(label="Chat", value="")
+
+    # 输入控制区域
+    with gr.Row():
+        with gr.Column():
+            user_input = gr.Textbox(
+                label="输入",
+                placeholder="Type your message here...",
+                lines=2
+            )
+            with gr.Row():
+                submit_button = gr.Button("Submit")  # 提交按钮
+                clear_button = gr.Button("开始新对话")  # 清空按钮
+
+    # 绑定按钮事件
+    submit_button.click(
+        fn=chat_with_model,  # 触发聊天函数
+        inputs=[user_input, chat_output, model_selector],  # 新增模型选择输入
+        outputs=chat_output  # 输出目标
+    )
+
+    clear_button.click(
+        fn=clear_conversation,  # 触发清空函数
+        inputs=[chat_output],  # 输入参数
+        outputs=chat_output  # 输出目标
+    )
+
+# -------------------- 启动应用 --------------------
+# 启动Gradio应用并自动打开链接
+webbrowser.open("http://127.0.0.1:7860")
+demo.launch(server_name="127.0.0.1", server_port=7860, show_api=False)
