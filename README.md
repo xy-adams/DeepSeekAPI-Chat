@@ -63,7 +63,7 @@ pip install -r requirements.txt
 
 ```bash
 cd DeepSeekAPI-Chat
-python deepseek_api.py
+python deepseek_plus.py
 ```
 
 默认访问地址为 http://127.0.0.1:7860。
