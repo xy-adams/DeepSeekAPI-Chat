@@ -13,6 +13,7 @@ client = OpenAI(
 
 
 # -------------------- # 模型配置 --------------------
+# 可用模型列表
 AVAILABLE_MODELS = [
     "deepseek-r1",
     "deepseek-v3",
