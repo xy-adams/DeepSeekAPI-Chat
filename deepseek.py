@@ -4,9 +4,8 @@ import gradio as gr
 from openai import OpenAI
 import base64
 import webbrowser
-from datetime import datetime
 
-# -------------------- 客户端初始化 --------------------
+# -------------------- 客户端初始化 -------------------- 
 # 初始化OpenAI客户端（适配阿里云平台）
 client = OpenAI(
     api_key="sk-145d98eda0454bc2b0fccd036efada63",  # 从环境变量获取API密钥
@@ -22,7 +21,7 @@ MODEL_CONFIG = {
         "qwen-omni-turbo-latest",
         "llama3.3-70b-instruct"
     ],
-    "default_model": "qwen-omni-turbo-latest",
+    "default_model": "deepseek-r1",
     "max_history": 8
 }
 
